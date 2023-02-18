@@ -156,7 +156,7 @@
             this.Controls.Add(this.dataGridViewHoliday);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "SigningCardForm";
-            this.Text = "签卡工具V1.0";
+            this.Text = "签卡工具V1.2";
             this.Load += new System.EventHandler(this.SigningCardForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewHoliday)).EndInit();
             this.ResumeLayout(false);

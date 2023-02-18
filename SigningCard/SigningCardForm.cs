@@ -188,6 +188,10 @@ namespace SigningCard
                     DateTime dtOTD1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 19, 31, 0);
                     DateTime dtOTD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 23, 59, 0);
 
+                    //夜班
+                    DateTime dtND1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 0, 0, 0);
+                    DateTime dtND2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 7, 29, 0);
+
                     //正常上班
                     bool[] szbSingingCardSts = new bool[6] { false, false, false, false, false, false };
 
@@ -218,6 +222,10 @@ namespace SigningCard
                         else if (curDayList[j] >= dtOTD1 && curDayList[j] <= dtOTD2)
                         {
                             szbSingingCardSts[5] = true;
+                            overtimeList.Add(curDayList[j]);
+                        }
+                        else if (curDayList[j] >= dtND1 && curDayList[j] <= dtND2)
+                        {
                             overtimeList.Add(curDayList[j]);
                         }
                     }
@@ -285,8 +293,8 @@ namespace SigningCard
                     sheet.Cells[i, 0].PutValue(i);
                     sheet.Cells[i, 1].PutValue(strNameNO);
                     
-                    sheet.Cells[i, 2].PutValue(item.ToShortDateString().Replace('/', '-'));
-                    sheet.Cells[i, 3].PutValue(item.ToShortTimeString());
+                    sheet.Cells[i, 2].PutValue(item.ToString("yyyy-MM-dd"));
+                    sheet.Cells[i, 3].PutValue(item.ToString("HH:mm"));
                     sheet.Cells[i, 4].PutValue("正常签卡");
                     sheet.Cells[i, 5].PutValue("正常上班");
                     //绑定样式
@@ -359,13 +367,13 @@ namespace SigningCard
 
                         sheet.Cells[i, 2].PutValue("平时加班");
                         sheet.Cells[i, 3].PutValue("测试");
-                        sheet.Cells[i, 4].PutValue(item.ToShortDateString().Replace('/','-'));
+                        sheet.Cells[i, 4].PutValue(item.ToString("yyyy-MM-dd"));
                         //绑定样式
                         sheet.Cells[i, 4].SetStyle(styleTmp1);
                     }
 
                     sheet.Cells[i, j + 5].SetStyle(styleTmp2);
-                    sheet.Cells[i, j + 5].PutValue(item.ToShortTimeString());
+                    sheet.Cells[i, j + 5].PutValue(item.ToString("HH:mm"));
                     j++;
 
                 }
