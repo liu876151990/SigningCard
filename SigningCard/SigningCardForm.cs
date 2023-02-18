@@ -183,9 +183,9 @@ namespace SigningCard
 
                     //加班有效区间
                     DateTime dtOTU1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 18, 16, 0);
-                    DateTime dtOTU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 19, 30, 0);
+                    DateTime dtOTU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 18, 59, 0);
 
-                    DateTime dtOTD1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 19, 31, 0);
+                    DateTime dtOTD1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 19, 01, 0);
                     DateTime dtOTD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 23, 59, 0);
 
                     //夜班
@@ -231,23 +231,44 @@ namespace SigningCard
                     }
 
                     //每天需要的签卡 有加班缺卡则另外添加
-                    for (int k = 0; k < 4; k++)
+                    for (int k = 0; k < 3; k++) //加班连班情况第四个卡需要考虑是否存在只有一个加班下班卡情况
                     {
                         if (false == szbSingingCardSts[k])
                         {
                             singingCardList.Add(dtModel[k]);
                         }
                     }
-                    if (true == szbSingingCardSts[4] && false == szbSingingCardSts[5])
+                    if (true == szbSingingCardSts[3])
                     {
-                        singingCardList.Add(dtModel[5]);
-                        overtimeList.Add(dtModel[5]);
+                        if (true == szbSingingCardSts[4] && false == szbSingingCardSts[5])
+                        {
+                            //加班下班缺卡
+                            singingCardList.Add(dtModel[5]);
+                            overtimeList.Add(dtModel[5]);
+                        }
+                        else if (false == szbSingingCardSts[4] && true == szbSingingCardSts[5])
+                        {
+                            //加班上班缺卡
+                            singingCardList.Add(dtModel[4]);
+                            overtimeList.Add(dtModel[4]);
+                        }
                     }
-                    else if (false == szbSingingCardSts[4] && true == szbSingingCardSts[5])
+                    else if (false == szbSingingCardSts[3])
                     {
-                        singingCardList.Add(dtModel[4]);
-                        overtimeList.Add(dtModel[4]);
+                        if (true == szbSingingCardSts[4] && false == szbSingingCardSts[5])
+                        {
+                            //下班缺卡  及 加班下班缺卡
+                            singingCardList.Add(dtModel[3]);
+                            singingCardList.Add(dtModel[5]);
+                            overtimeList.Add(dtModel[5]);
+                        }
+                        else if (false == szbSingingCardSts[4] && true == szbSingingCardSts[5])
+                        {
+                            //连班 不打下班卡 及加班上班卡
+                            overtimeList.Add(dtModel[3]);
+                        }
                     }
+
                 }
             }
             singingCardList.Sort();
@@ -365,7 +386,16 @@ namespace SigningCard
                         sheet.Cells[i, 0].PutValue(i);
                         sheet.Cells[i, 1].PutValue(strNameNO);
 
-                        sheet.Cells[i, 2].PutValue("平时加班");
+                        if (holidayData[item.Day-1])
+                        {
+                            sheet.Cells[i, 2].PutValue("周六日加班");
+                        }
+                        else
+                        {
+                            sheet.Cells[i, 2].PutValue("平时加班");
+                        }
+
+
                         sheet.Cells[i, 3].PutValue("测试");
                         sheet.Cells[i, 4].PutValue(item.ToString("yyyy-MM-dd"));
                         //绑定样式
