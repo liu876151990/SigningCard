@@ -1,17 +1,21 @@
 ﻿//using DocumentFormat.OpenXml.Spreadsheet;
 //using Moq;
-using System.Diagnostics;
 using Aspose.Cells;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
+using Newtonsoft.Json;
+using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml;
+//using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace SigningCard
 {
@@ -25,6 +29,12 @@ namespace SigningCard
         bool[] holidayData = new bool[31];//最多31天
         string execlPath = null;
         string strDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        class Reason
+        {
+            public string Reason1 { get; set; }
+            public string Reason2 { get; set; }
+        }
+        BindingList<Reason> ReasonList = new BindingList<Reason>();
 
         public SigningCardForm()
         {
@@ -41,7 +51,7 @@ namespace SigningCard
             {
                 for (int j = 0; j < 6; j++)
                 {
-                    dataGridViewHoliday.Rows[j].Cells[i].Style.BackColor = Color.White;
+                    dataGridViewHoliday.Rows[j].Cells[i].Style.BackColor = System.Drawing.Color.White;
                     dataGridViewHoliday.Rows[j].Cells[i].Value = "";
                 }
             }
@@ -58,7 +68,7 @@ namespace SigningCard
                 if (colum == 0 || colum == 6)
                 {
                     holidayData[i] = true;
-                    dataGridViewHoliday.Rows[row].Cells[colum].Style.BackColor = Color.Green;
+                    dataGridViewHoliday.Rows[row].Cells[colum].Style.BackColor = System.Drawing.Color.Green;
                 }
                 else
                 {
@@ -96,6 +106,22 @@ namespace SigningCard
 
             DateTime date = DateTime.Now.AddMonths(0);
             SelectMonth(date.Year, date.Month);
+
+            try
+            {
+                using (System.IO.StreamReader file = System.IO.File.OpenText(System.AppDomain.CurrentDomain.BaseDirectory + "reason.json"))
+                {
+                    string json = file.ReadToEnd();
+                    ReasonList = JsonConvert.DeserializeObject<BindingList<Reason>>(json);
+                }
+            }
+            catch (Exception)
+            {
+
+            }
+            dataGridView1.AutoGenerateColumns = false;                    // 防止自由生成所有数据列
+
+            dataGridView1.DataSource = new BindingSource(ReasonList, null); 
         }
 
         private void DataGridViewHoliday_CellContentDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -113,12 +139,12 @@ namespace SigningCard
             }
             if (holidayData[index])
             {
-                dataGridViewHoliday.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = Color.White;
+                dataGridViewHoliday.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = System.Drawing.Color.White;
                 holidayData[index] = false;
             }
             else
             {
-                dataGridViewHoliday.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = Color.Green;
+                dataGridViewHoliday.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor = System.Drawing.Color.Green;
                 holidayData[index] = true;
             }
         }
@@ -131,7 +157,7 @@ namespace SigningCard
         private void AnalyzeExcel(string fileName)
         {
             string excelName = fileName;
-            Workbook excel = new Workbook(excelName);
+            Aspose.Cells.Workbook excel = new Aspose.Cells.Workbook(excelName);
             List<DateTime> importDateList = GetImportExcelRoute(excel);
 
             List<DateTime> singingCardList = new List<DateTime>();//签卡
@@ -277,10 +303,10 @@ namespace SigningCard
             //写回excel中
             //签卡
             {
-                Workbook wb = new Workbook(System.IO.Stream.Null);
-                Worksheet sheet = wb.Worksheets[0];
+                Aspose.Cells.Workbook wb = new Aspose.Cells.Workbook(System.IO.Stream.Null);
+                Aspose.Cells.Worksheet sheet = wb.Worksheets[0];
                 //设置样式
-                Style style = wb.CreateStyle();
+                Aspose.Cells.Style style = wb.CreateStyle();
                 style.ForegroundColor = System.Drawing.Color.FromArgb(128, 128, 128);
                 style.HorizontalAlignment = TextAlignmentType.Center;
                 style.VerticalAlignment = TextAlignmentType.Center;
@@ -300,11 +326,11 @@ namespace SigningCard
                 sheet.Cells[0, 3].SetStyle(style);
                 sheet.Cells[0, 4].SetStyle(style);
                 sheet.Cells[0, 5].SetStyle(style);
-                
 
-                Workbook excelTmp = new Workbook(System.AppDomain.CurrentDomain.BaseDirectory + "测试文件/签卡申请流程模板.xls");
-                Style styleTmp1 = excelTmp.Worksheets[0].Cells[1,2].GetStyle();
-                Style styleTmp2 = excelTmp.Worksheets[0].Cells[1,3].GetStyle();
+
+                Aspose.Cells.Workbook excelTmp = new Aspose.Cells.Workbook(System.AppDomain.CurrentDomain.BaseDirectory + "测试文件/签卡申请流程模板.xls");
+                Aspose.Cells.Style styleTmp1 = excelTmp.Worksheets[0].Cells[1,2].GetStyle();
+                Aspose.Cells.Style styleTmp2 = excelTmp.Worksheets[0].Cells[1,3].GetStyle();
 
                 string strNameNO = excel.Worksheets[0].Cells[1,1].StringValue + "_" + excel.Worksheets[0].Cells[1, 0].StringValue;
 
@@ -317,7 +343,22 @@ namespace SigningCard
                     sheet.Cells[i, 2].PutValue(item.ToString("yyyy-MM-dd"));
                     sheet.Cells[i, 3].PutValue(item.ToString("HH:mm"));
                     sheet.Cells[i, 4].PutValue("正常签卡");
-                    sheet.Cells[i, 5].PutValue("正常上班");
+                    //sheet.Cells[i, 5].PutValue("正常上班");
+                    try
+                    {
+                        if (ReasonList[i-1] != null && ReasonList[i-1].Reason1 != null)
+                        {
+                            sheet.Cells[i, 5].PutValue(ReasonList[i-1].Reason1);
+                        }
+                        else
+                        {
+                            sheet.Cells[i, 5].PutValue("正常上班");
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        sheet.Cells[i, 5].PutValue("正常上班");
+                    }
                     //绑定样式
                     sheet.Cells[i, 2].SetStyle(styleTmp1);
                     sheet.Cells[i, 3].SetStyle(styleTmp2);
@@ -326,14 +367,15 @@ namespace SigningCard
 
                 wb.Save(System.AppDomain.CurrentDomain.BaseDirectory + @"输出文件\签卡测试.xls");
             }
+            XLDeleteSheet(System.AppDomain.CurrentDomain.BaseDirectory + @"输出文件\签卡测试.xls", "Evaluation Warning");
 
             //写回excel中
             //加班
             {
-                Workbook wb = new Workbook();
-                Worksheet sheet = wb.Worksheets[0];
+                Aspose.Cells.Workbook wb = new Aspose.Cells.Workbook();
+                Aspose.Cells.Worksheet sheet = wb.Worksheets[0];
                 //设置样式
-                Style style = wb.CreateStyle();
+                Aspose.Cells.Style style = wb.CreateStyle();
                 style.ForegroundColor = System.Drawing.Color.FromArgb(128, 128, 128);
                 style.HorizontalAlignment = TextAlignmentType.Center;
                 style.VerticalAlignment = TextAlignmentType.Center;
@@ -365,9 +407,9 @@ namespace SigningCard
 
 
 
-                Workbook excelTmp = new Workbook(System.AppDomain.CurrentDomain.BaseDirectory + "测试文件/加班申请单模板.xls");
-                Style styleTmp1 = excelTmp.Worksheets[0].Cells[1, 4].GetStyle();
-                Style styleTmp2 = excelTmp.Worksheets[0].Cells[1, 5].GetStyle();
+                Aspose.Cells.Workbook excelTmp = new Aspose.Cells.Workbook(System.AppDomain.CurrentDomain.BaseDirectory + "测试文件/加班申请单模板.xls");
+                Aspose.Cells.Style styleTmp1 = excelTmp.Worksheets[0].Cells[1, 4].GetStyle();
+                Aspose.Cells.Style styleTmp2 = excelTmp.Worksheets[0].Cells[1, 5].GetStyle();
 
 
 
@@ -395,8 +437,22 @@ namespace SigningCard
                             sheet.Cells[i, 2].PutValue("平时加班");
                         }
 
-
-                        sheet.Cells[i, 3].PutValue("测试");
+                        try
+                        {
+                            if (ReasonList[i-1] != null && ReasonList[i - 1].Reason2 != null)
+                            {
+                                sheet.Cells[i, 3].PutValue(ReasonList[i - 1].Reason2);
+                            }
+                            else
+                            {
+                                sheet.Cells[i, 3].PutValue("测试");
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            sheet.Cells[i, 3].PutValue("测试");
+                        }
+                        
                         sheet.Cells[i, 4].PutValue(item.ToString("yyyy-MM-dd"));
                         //绑定样式
                         sheet.Cells[i, 4].SetStyle(styleTmp1);
@@ -410,17 +466,35 @@ namespace SigningCard
 
                 wb.Save(System.AppDomain.CurrentDomain.BaseDirectory + @"输出文件\加班测试.xls");
             }
+
+            XLDeleteSheet(System.AppDomain.CurrentDomain.BaseDirectory + @"输出文件\加班测试.xls", "Evaluation Warning");
         }
 
+        public bool XLDeleteSheet(string fileName, string sheetToDelete)
+        {
+            bool returnValue = true;
+            using (var fs = new FileStream(fileName, FileMode.Open, FileAccess.ReadWrite))
+            {
+                IWorkbook workbook = new HSSFWorkbook(fs);
+                workbook.RemoveSheetAt(1);
+                using (var fsw = new FileStream(fileName, FileMode.Open, FileAccess.ReadWrite))
+                {
+                    workbook.Write(fsw);
+                    fsw.Close();
+                }
+                    
+            }
+            return returnValue;
+        }
         //循环遍历获取excel的中每行每列的值  
-        public List<DateTime> GetImportExcelRoute(Workbook excel)
+        public List<DateTime> GetImportExcelRoute(Aspose.Cells.Workbook excel)
         {
             int icount = excel.Worksheets.Count;
 
             List<DateTime> routList = new List<DateTime>();
             for (int i = 0; i < 1/*icount*/; i++)
             {
-                Worksheet sheet = excel.Worksheets[i];
+                Aspose.Cells.Worksheet sheet = excel.Worksheets[i];
                 Cells cells = sheet.Cells;
                 int rowcount = cells.MaxRow;//行数需要+1
                 int columncount = cells.MaxColumn;
@@ -455,5 +529,16 @@ namespace SigningCard
             return routList;
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            //ReasonList
+            string json = JsonConvert.SerializeObject(ReasonList);
+            //BindingList<Reason> m = JsonConvert.DeserializeObject<BindingList<Reason>>(json);
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(System.AppDomain.CurrentDomain.BaseDirectory+"reason.json"))
+            {
+                file.Write(json);
+            }
+
+        }
     }
 }
