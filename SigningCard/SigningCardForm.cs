@@ -293,6 +293,11 @@ namespace SigningCard
                             //连班 不打下班卡 及加班上班卡
                             overtimeList.Add(dtModel[3]);
                         }
+                        else if (false == szbSingingCardSts[4] && false == szbSingingCardSts[5])
+                        {
+                            //下班缺卡无加班
+                            singingCardList.Add(dtModel[3]);
+                        }
                     }
 
                 }
