@@ -290,8 +290,17 @@ namespace SigningCard
                         }
                         else if (false == szbSingingCardSts[4] && true == szbSingingCardSts[5])
                         {
-                            //连班 不打下班卡 及加班上班卡
-                            overtimeList.Add(dtModel[3]);
+                            if (checkBox1.Checked)
+                            {
+                                //连班 不打下班卡 及加班上班卡
+                                overtimeList.Add(dtModel[3]);
+                            }
+                            else
+                            {
+                                singingCardList.Add(dtModel[3]);
+                                singingCardList.Add(dtModel[4]);
+                                overtimeList.Add(dtModel[4]);
+                            }
                         }
                         else if (false == szbSingingCardSts[4] && false == szbSingingCardSts[5])
                         {
