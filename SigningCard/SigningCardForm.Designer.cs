@@ -46,6 +46,7 @@
             this.Column2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.button1 = new System.Windows.Forms.Button();
             this.checkBox1 = new System.Windows.Forms.CheckBox();
+            this.buttonClipBoard = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewHoliday)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
@@ -194,18 +195,29 @@
             // checkBox1
             // 
             this.checkBox1.AutoSize = true;
-            this.checkBox1.Location = new System.Drawing.Point(226, 243);
+            this.checkBox1.Location = new System.Drawing.Point(226, 266);
             this.checkBox1.Name = "checkBox1";
             this.checkBox1.Size = new System.Drawing.Size(72, 16);
             this.checkBox1.TabIndex = 8;
             this.checkBox1.Text = "允许连班";
             this.checkBox1.UseVisualStyleBackColor = true;
             // 
+            // buttonClipBoard
+            // 
+            this.buttonClipBoard.Location = new System.Drawing.Point(219, 219);
+            this.buttonClipBoard.Name = "buttonClipBoard";
+            this.buttonClipBoard.Size = new System.Drawing.Size(75, 23);
+            this.buttonClipBoard.TabIndex = 9;
+            this.buttonClipBoard.Text = "从剪贴板";
+            this.buttonClipBoard.UseVisualStyleBackColor = true;
+            this.buttonClipBoard.Click += new System.EventHandler(this.buttonClipBoard_Click);
+            // 
             // SigningCardForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(843, 424);
+            this.Controls.Add(this.buttonClipBoard);
             this.Controls.Add(this.checkBox1);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.dataGridView1);
@@ -215,7 +227,7 @@
             this.Controls.Add(this.dataGridViewHoliday);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "SigningCardForm";
-            this.Text = "签卡工具V1.4.1";
+            this.Text = "签卡工具V1.4.2";
             this.Load += new System.EventHandler(this.SigningCardForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewHoliday)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
@@ -243,6 +255,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn Column2;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.CheckBox checkBox1;
+        private System.Windows.Forms.Button buttonClipBoard;
     }
 }
 

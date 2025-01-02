@@ -1,6 +1,8 @@
 ﻿//using DocumentFormat.OpenXml.Spreadsheet;
 //using Moq;
 using Aspose.Cells;
+using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Drawing.Charts;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using Newtonsoft.Json;
@@ -13,6 +15,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml;
 //using DocumentFormat.OpenXml.Wordprocessing;
@@ -156,9 +159,98 @@ namespace SigningCard
 
         private void AnalyzeExcel(string fileName)
         {
-            string excelName = fileName;
-            Aspose.Cells.Workbook excel = new Aspose.Cells.Workbook(excelName);
-            List<DateTime> importDateList = GetImportExcelRoute(excel);
+            List<DateTime> importDateList = new List<DateTime>();
+            string strNameNO = "";
+            if (fileName != null)
+            {
+                string excelName = fileName;
+                Aspose.Cells.Workbook excel = new Aspose.Cells.Workbook(excelName);
+                importDateList = GetImportExcelRoute(excel);
+                strNameNO = excel.Worksheets[0].Cells[1, 1].StringValue + "_" + excel.Worksheets[0].Cells[1, 0].StringValue;
+            }
+            else
+            {
+                if (Clipboard.ContainsText())
+                {
+                    //dateTimePicker1.Value.Year, dateTimePicker1.Value.Month
+                    string clipboardText = Clipboard.GetText();
+
+                    // 3. 使用正则表达式匹配时间戳
+                    string timePattern = @"(\d{2}:\d{2}:\d{2})"; // 匹配时间戳
+                    Regex timeRegex = new Regex(timePattern);
+
+                    // 4. 使用正则表达式匹配日期
+                    string dayPattern = @"^\d{1,2}$"; // 匹配日期，假设日期为1-2位数字
+                    Regex dayRegex = new Regex(dayPattern);
+
+                    // 5. 解析数据并提取每天的打卡时间
+                    int currentDay = 0; // 当前处理的日期
+                    bool hasPunchTime = false; // 标记当前日期是否有打卡记录
+
+                    var year = Convert.ToInt32(Regex.Match(clipboardText, @"年份:\s*(\d{4})").Groups[1].Value);
+                    var month = Convert.ToInt32(Regex.Match(clipboardText, @"月份:\s*(\d{1,2})").Groups[1].Value);
+                    // 正则表达式匹配名字_ID
+                    string idPattern = @"\w+_\d+";
+
+                    // 查找所有匹配的结果
+                    MatchCollection matches = Regex.Matches(clipboardText, idPattern);
+                    if (matches.Count>0)
+                    {
+                        strNameNO = Regex.Replace(matches[0].Value, @"^\d+", ""); ;
+                    }
+
+                    foreach (var line in clipboardText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string trimmedLine = line.Trim();
+
+                        // 5.1 检查当前行是否是日期
+                        if (dayRegex.IsMatch(trimmedLine))
+                        {
+                            // 提取日期
+                            if (currentDay != 0 && hasPunchTime)
+                            {
+                                // 如果上一天有打卡时间，继续处理下一天
+                                currentDay = 0; // 处理完一天后重置
+                            }
+
+                            currentDay = int.Parse(trimmedLine);
+                            hasPunchTime = false; // 重置标志
+
+                            continue; // 跳过这一行，处理下一行的时间
+                        }
+
+                        // 5.2 如果当前行有打卡时间，匹配并添加打卡记录
+                        var timeMatches = timeRegex.Matches(trimmedLine);
+                        if (timeMatches.Count > 0)
+                        {
+                            hasPunchTime = true; // 表示该天有打卡记录
+                            foreach (Match match in timeMatches)
+                            {
+                                string timeStr = match.Value;
+                                DateTime punchTime = DateTime.ParseExact(timeStr, "HH:mm:ss", null);
+
+                                // 将打卡时间和日期合并
+                                if (year!=0 && month!=0)
+                                {
+                                    DateTime punchDateTime = new DateTime(year, month, currentDay, punchTime.Hour, punchTime.Minute, punchTime.Second);
+                                    importDateList.Add(punchDateTime);
+                                }
+                                else
+                                {
+                                    DateTime punchDateTime = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, currentDay, punchTime.Hour, punchTime.Minute, punchTime.Second);
+                                    importDateList.Add(punchDateTime);
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }
+             
+            if (importDateList.Count <= 0)
+            {
+                return;
+            }
 
             List<DateTime> singingCardList = new List<DateTime>();//签卡
             List<DateTime> overtimeList = new List<DateTime>();//加班
@@ -346,7 +438,6 @@ namespace SigningCard
                 Aspose.Cells.Style styleTmp1 = excelTmp.Worksheets[0].Cells[1,2].GetStyle();
                 Aspose.Cells.Style styleTmp2 = excelTmp.Worksheets[0].Cells[1,3].GetStyle();
 
-                string strNameNO = excel.Worksheets[0].Cells[1,1].StringValue + "_" + excel.Worksheets[0].Cells[1, 0].StringValue;
 
                 int i = 1;
                 foreach (var item in singingCardList)
@@ -430,7 +521,6 @@ namespace SigningCard
                 int i = 0;
                 int j = 0;
                 int nLastDay = 0;
-                string strNameNO = excel.Worksheets[0].Cells[1, 1].StringValue + "_" + excel.Worksheets[0].Cells[1, 0].StringValue;
                 foreach (var item in overtimeList)
                 {
                     if (nLastDay != item.Day)
@@ -553,6 +643,11 @@ namespace SigningCard
                 file.Write(json);
             }
 
+        }
+
+        private void buttonClipBoard_Click(object sender, EventArgs e)
+        {
+            AnalyzeExcel(null);
         }
     }
 }
