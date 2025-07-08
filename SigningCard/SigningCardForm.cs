@@ -288,27 +288,27 @@ namespace SigningCard
                     new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 20, 30, 0)};
                     //各时段上下班判断有效区间
                     DateTime dtAMU1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 7, 30, 0);
-                    DateTime dtAMU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 8, 35, 0);
+                    DateTime dtAMU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 8, 35, 59);
 
                     DateTime dtAMD1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 11, 55, 0);
-                    DateTime dtAMD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 12, 45, 0);
+                    DateTime dtAMD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 12, 45, 59);
 
                     DateTime dtPMU1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 12, 46, 0);
-                    DateTime dtPMU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 13, 35, 0);
+                    DateTime dtPMU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 13, 35, 59);
 
                     DateTime dtPMD1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 17, 55, 0);
-                    DateTime dtPMD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 18, 15, 0);
+                    DateTime dtPMD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 18, 15, 59);
 
                     //加班有效区间
                     DateTime dtOTU1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 18, 16, 0);
-                    DateTime dtOTU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 18, 59, 0);
+                    DateTime dtOTU2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 18, 59, 59);
 
                     DateTime dtOTD1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 19, 01, 0);
-                    DateTime dtOTD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 23, 59, 0);
+                    DateTime dtOTD2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 23, 59, 59);
 
                     //夜班
                     DateTime dtND1 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 0, 0, 0);
-                    DateTime dtND2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 7, 29, 0);
+                    DateTime dtND2 = new DateTime(dateTimePicker1.Value.Year, dateTimePicker1.Value.Month, i + 1, 7, 29, 59);
 
                     //正常上班
                     bool[] szbSingingCardSts = new bool[6] { false, false, false, false, false, false };
