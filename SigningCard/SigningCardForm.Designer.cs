@@ -56,13 +56,13 @@
             // 
             this.dataGridViewHoliday.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dataGridViewHoliday.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
-            this.日,
             this.一,
             this.二,
             this.三,
             this.四,
             this.五,
-            this.六});
+            this.六,
+            this.日});
             this.dataGridViewHoliday.Location = new System.Drawing.Point(12, 12);
             this.dataGridViewHoliday.Name = "dataGridViewHoliday";
             this.dataGridViewHoliday.RowHeadersVisible = false;

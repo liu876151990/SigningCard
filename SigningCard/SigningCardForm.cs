@@ -30,6 +30,7 @@ namespace SigningCard
         const int dataViewColums = 7;
         int totalDays = 0;
         int weekDayFirstDay = 0;//本月第一天是星期几
+        int adjustedFirstDay = 0;//调整为星期一为第一列后的索引
         bool[] holidayData = new bool[31];//最多31天
         string execlPath = null;
         string strDesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
@@ -61,15 +62,25 @@ namespace SigningCard
             }
 
             totalDays = DateTime.DaysInMonth(year, month);
-            weekDayFirstDay = (int)DateTime.Parse(
-                string.Format("{0:D}/{1:D}/{2:D}", year, month, 1)).DayOfWeek;
+            // 获取本月第一天是星期几（Sunday=0, Monday=1, ..., Saturday=6）
+            DateTime firstDay = DateTime.Parse(string.Format("{0:D}/{1:D}/{2:D}", year, month, 1));
+            weekDayFirstDay = (int)firstDay.DayOfWeek;
+            
+            // 转换为星期一为第一列的索引（Monday=0, Tuesday=1, ..., Sunday=6）
+            adjustedFirstDay = weekDayFirstDay == 0 ? 6 : weekDayFirstDay - 1;
 
             for (int i = 0; i < totalDays; i++)
             {
-                int row = (i + weekDayFirstDay) / dataViewColums;
-                int colum = (i + weekDayFirstDay) % dataViewColums;
+                int row = (i + adjustedFirstDay) / dataViewColums;
+                int colum = (i + adjustedFirstDay) % dataViewColums;
                 dataGridViewHoliday.Rows[row].Cells[colum].Value = i + 1;
-                if (colum == 0 || colum == 6)
+                
+                // 判断当前日期是星期几
+                DateTime currentDate = new DateTime(year, month, i + 1);
+                DayOfWeek dayOfWeek = currentDate.DayOfWeek;
+                
+                // 星期日（Sunday=0）或星期六（Saturday=6）为节假日
+                if (dayOfWeek == DayOfWeek.Sunday || dayOfWeek == DayOfWeek.Saturday)
                 {
                     holidayData[i] = true;
                     dataGridViewHoliday.Rows[row].Cells[colum].Style.BackColor = System.Drawing.Color.Green;
@@ -136,7 +147,7 @@ namespace SigningCard
 
         private void DataGridViewHoliday_CellMouseDoubleClick(object sender, DataGridViewCellMouseEventArgs e)
         {
-            int index = e.RowIndex * dataViewColums + e.ColumnIndex - weekDayFirstDay;
+            int index = e.RowIndex * dataViewColums + e.ColumnIndex - adjustedFirstDay;
             if (index >= totalDays || index < 0)
             {
                 return;
@@ -704,8 +715,8 @@ namespace SigningCard
                     }
                     
                     // 更新日历显示颜色
-                    int row = (i + weekDayFirstDay) / dataViewColums;
-                    int col = (i + weekDayFirstDay) % dataViewColums;
+                    int row = (i + adjustedFirstDay) / dataViewColums;
+                    int col = (i + adjustedFirstDay) % dataViewColums;
                     
                     if (row < dataGridViewHoliday.RowCount && col < dataGridViewHoliday.ColumnCount)
                     {
@@ -731,8 +742,8 @@ namespace SigningCard
                                 int dayIndex = holidayDate.Day - 1;
                                 if (dayIndex >= 0 && dayIndex < totalDays)
                                 {
-                                    int row = (dayIndex + weekDayFirstDay) / dataViewColums;
-                                    int col = (dayIndex + weekDayFirstDay) % dataViewColums;
+                                    int row = (dayIndex + adjustedFirstDay) / dataViewColums;
+                                    int col = (dayIndex + adjustedFirstDay) % dataViewColums;
                                     
                                     if (row < dataGridViewHoliday.RowCount && col < dataGridViewHoliday.ColumnCount)
                                     {
