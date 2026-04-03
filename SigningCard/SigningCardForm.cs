@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -648,6 +649,115 @@ namespace SigningCard
         private void buttonClipBoard_Click(object sender, EventArgs e)
         {
             AnalyzeExcel(null);
+        }
+
+        private async void ButtonGetHolidays_Click(object sender, EventArgs e)
+        {
+            int year = dateTimePicker1.Value.Year;
+            buttonGetHolidays.Enabled = false;
+            buttonGetHolidays.Text = "获取中...";
+
+            try
+            {
+                await GetHolidaysFromWeb(year);
+                MessageBox.Show($"已成功获取 {year} 年节假日数据", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"获取节假日失败: {ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                buttonGetHolidays.Enabled = true;
+                buttonGetHolidays.Text = "获取节假日";
+            }
+        }
+
+        private async System.Threading.Tasks.Task GetHolidaysFromWeb(int year)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                client.Timeout = TimeSpan.FromSeconds(10);
+                string url = $"http://timor.tech/api/holiday/year/{year}";
+
+                HttpResponseMessage response = await client.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                string json = await response.Content.ReadAsStringAsync();
+                dynamic result = JsonConvert.DeserializeObject(json);
+
+                // 首先重置当前月份的所有节假日数据
+                for (int i = 0; i < totalDays; i++)
+                {
+                    // 重置为默认状态：周六周日是节假日，其他不是
+                    int dayOfMonth = i + 1;
+                    DateTime currentDate = new DateTime(year, dateTimePicker1.Value.Month, dayOfMonth);
+                    DayOfWeek dayOfWeek = currentDate.DayOfWeek;
+                    
+                    if (dayOfWeek == DayOfWeek.Saturday || dayOfWeek == DayOfWeek.Sunday)
+                    {
+                        holidayData[i] = true;
+                    }
+                    else
+                    {
+                        holidayData[i] = false;
+                    }
+                    
+                    // 更新日历显示颜色
+                    int row = (i + weekDayFirstDay) / dataViewColums;
+                    int col = (i + weekDayFirstDay) % dataViewColums;
+                    
+                    if (row < dataGridViewHoliday.RowCount && col < dataGridViewHoliday.ColumnCount)
+                    {
+                        dataGridViewHoliday.Rows[row].Cells[col].Style.BackColor = holidayData[i] ? System.Drawing.Color.Green : System.Drawing.Color.White;
+                    }
+                }
+
+                // 然后根据API数据更新节假日状态
+                if (result.holiday != null)
+                {
+                    // holiday 是一个字典，键是日期字符串（如 "01-01"），值是节假日信息
+                    foreach (var kvp in result.holiday)
+                    {
+                        // kvp 是一个键值对，需要获取其 Value
+                        var holidayInfo = kvp.Value;
+                        string dateStr = holidayInfo.date.ToString();
+                        
+                        if (!string.IsNullOrEmpty(dateStr))
+                        {
+                            DateTime holidayDate = DateTime.Parse(dateStr);
+                            if (holidayDate.Year == year && holidayDate.Month == dateTimePicker1.Value.Month)
+                            {
+                                int dayIndex = holidayDate.Day - 1;
+                                if (dayIndex >= 0 && dayIndex < totalDays)
+                                {
+                                    int row = (dayIndex + weekDayFirstDay) / dataViewColums;
+                                    int col = (dayIndex + weekDayFirstDay) % dataViewColums;
+                                    
+                                    if (row < dataGridViewHoliday.RowCount && col < dataGridViewHoliday.ColumnCount)
+                                    {
+                                        // 检查是否是调休日（holiday: false）
+                                        bool isWorkDay = holidayInfo.holiday != null && holidayInfo.holiday.ToString() == "False";
+                                        
+                                        if (isWorkDay)
+                                        {
+                                            // 调休工作日，标记为非节假日（白色）
+                                            holidayData[dayIndex] = false;
+                                            dataGridViewHoliday.Rows[row].Cells[col].Style.BackColor = System.Drawing.Color.White;
+                                        }
+                                        else
+                                        {
+                                            // 正常节假日，标记为绿色
+                                            holidayData[dayIndex] = true;
+                                            dataGridViewHoliday.Rows[row].Cells[col].Style.BackColor = System.Drawing.Color.Green;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

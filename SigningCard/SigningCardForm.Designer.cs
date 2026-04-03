@@ -47,6 +47,7 @@
             this.button1 = new System.Windows.Forms.Button();
             this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.buttonClipBoard = new System.Windows.Forms.Button();
+            this.buttonGetHolidays = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewHoliday)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
@@ -133,8 +134,11 @@
             // 
             // dateTimePicker1
             // 
+            this.dateTimePicker1.CustomFormat = "yyyy年MM月";
+            this.dateTimePicker1.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
             this.dateTimePicker1.Location = new System.Drawing.Point(55, 186);
             this.dateTimePicker1.Name = "dateTimePicker1";
+            this.dateTimePicker1.ShowUpDown = true;
             this.dateTimePicker1.Size = new System.Drawing.Size(111, 21);
             this.dateTimePicker1.TabIndex = 3;
             this.dateTimePicker1.ValueChanged += new System.EventHandler(this.DateTimePicker1_ValueChanged);
@@ -212,11 +216,22 @@
             this.buttonClipBoard.UseVisualStyleBackColor = true;
             this.buttonClipBoard.Click += new System.EventHandler(this.buttonClipBoard_Click);
             // 
+            // buttonGetHolidays
+            // 
+            this.buttonGetHolidays.Location = new System.Drawing.Point(91, 219);
+            this.buttonGetHolidays.Name = "buttonGetHolidays";
+            this.buttonGetHolidays.Size = new System.Drawing.Size(75, 23);
+            this.buttonGetHolidays.TabIndex = 10;
+            this.buttonGetHolidays.Text = "获取节假日";
+            this.buttonGetHolidays.UseVisualStyleBackColor = true;
+            this.buttonGetHolidays.Click += new System.EventHandler(this.ButtonGetHolidays_Click);
+            // 
             // SigningCardForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(843, 424);
+            this.Controls.Add(this.buttonGetHolidays);
             this.Controls.Add(this.buttonClipBoard);
             this.Controls.Add(this.checkBox1);
             this.Controls.Add(this.button1);
@@ -256,6 +271,7 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.CheckBox checkBox1;
         private System.Windows.Forms.Button buttonClipBoard;
+        private System.Windows.Forms.Button buttonGetHolidays;
     }
 }
 
