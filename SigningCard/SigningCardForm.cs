@@ -716,19 +716,19 @@ namespace SigningCard
 
             using (var client = new HttpClient(handler))
             {
-                client.Timeout = TimeSpan.FromSeconds(20);
+                client.Timeout = TimeSpan.FromSeconds(30);
                 client.DefaultRequestHeaders.Referrer = new Uri("https://oa.hanslaser.com/wui/index.html");
                 client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
 
                 var rsaInfo = await GetRsaInfoAsync(client);
-                string encryptedLoginId = EncryptWithRsa(rsaInfo.PublicKey, loginId) + rsaInfo.RsaFlag;
-                string encryptedPassword = EncryptWithRsa(rsaInfo.PublicKey, password) + rsaInfo.RsaFlag;
+                string encLogin = RsaEncryptForOa(loginId, rsaInfo.PublicKey, rsaInfo.RsaCode, rsaInfo.RsaFlag);
+                string encPwd = RsaEncryptForOa(password, rsaInfo.PublicKey, rsaInfo.RsaCode, rsaInfo.RsaFlag);
 
                 var loginPayload = new Dictionary<string, string>
                 {
                     {"islanguid", "7"},
-                    {"loginid", encryptedLoginId},
-                    {"userpassword", encryptedPassword},
+                    {"loginid", encLogin},
+                    {"userpassword", encPwd},
                     {"dynamicPassword", ""},
                     {"tokenAuthKey", ""},
                     {"validatecode", ""},
@@ -744,97 +744,64 @@ namespace SigningCard
                 loginResp.EnsureSuccessStatusCode();
                 string loginText = await loginResp.Content.ReadAsStringAsync();
                 dynamic loginObj = JsonConvert.DeserializeObject(loginText);
-                string loginStatus = loginObj?.loginstatus?.ToString();
-                string msgCode = loginObj?.msgcode?.ToString();
-                if (loginStatus != "true" && msgCode != "0")
+                string msgcode = loginObj?.msgcode?.ToString();
+                string loginstatus = loginObj?.loginstatus?.ToString();
+                if (msgcode != "0" && loginstatus != "true")
                 {
-                    throw new Exception("登录失败：" + (loginObj?.msg?.ToString() ?? "未知错误"));
+                    throw new Exception((string)(loginObj?.msg ?? "登录失败"));
                 }
 
-                int lastDay = DateTime.DaysInMonth(year, month);
-                var candidates = new List<string>
+                var result = new List<DateTime>();
+                int days = DateTime.DaysInMonth(year, month);
+                for (int day = 1; day <= days; day++)
                 {
-                    "https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp",
-                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?month={year}-{month:D2}",
-                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?year={year}&month={month:D2}",
-                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?begindate={year}-{month:D2}-01&enddate={year}-{month:D2}-{lastDay:D2}",
-                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?fromDate={year}-{month:D2}-01&toDate={year}-{month:D2}-{lastDay:D2}"
-                };
-
-                foreach (var url in candidates)
-                {
-                    try
-                    {
-                        string text = await client.GetStringAsync(url);
-                        var list = ParseAttendanceDateTimes(text, year, month);
-                        if (list.Count > 0)
-                        {
-                            return list;
-                        }
-                    }
-                    catch
-                    {
-                    }
+                    string dateParam = string.Format("{0}-{1}-{2}", year, month, day);
+                    string url = "https://oa.hanslaser.com/api/hans/Administrative/getinfo?date=" + dateParam + "&workcode=&_=" + DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                    string text = await client.GetStringAsync(url);
+                    result.AddRange(ParseHansAdministrativeResponse(text, year, month));
                 }
-
-                throw new Exception("未在已知接口中解析到考勤明细。请补抓一次“进入考勤统计页并切换月份”的HAR后再适配。");
-            }
-        }
-
-        private List<DateTime> ParseAttendanceDateTimes(string rawText, int defaultYear, int defaultMonth)
-        {
-            var result = new List<DateTime>();
-            if (string.IsNullOrWhiteSpace(rawText))
-            {
-                return result;
-            }
-
-            string decoded = WebUtility.HtmlDecode(rawText);
-
-            foreach (Match m in Regex.Matches(decoded, @"\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{2}:\d{2}(:\d{2})?"))
-            {
-                DateTime dt;
-                if (DateTime.TryParse(m.Value, out dt) && dt.Year == defaultYear && dt.Month == defaultMonth)
-                {
-                    result.Add(dt);
-                }
-            }
-
-            if (result.Count > 0)
-            {
                 result.Sort();
                 return result;
             }
+        }
 
-            string pattern = @"(\d{1,2})\D+(\d{2}:\d{2}(:\d{2})?)";
-            foreach (Match m in Regex.Matches(decoded, pattern))
+        private List<DateTime> ParseHansAdministrativeResponse(string text, int year, int month)
+        {
+            var list = new List<DateTime>();
+            if (string.IsNullOrWhiteSpace(text))
             {
-                int day;
-                if (!int.TryParse(m.Groups[1].Value, out day))
-                {
-                    continue;
-                }
-                TimeSpan t;
-                if (!TimeSpan.TryParse(m.Groups[2].Value, out t))
-                {
-                    continue;
-                }
-                try
-                {
-                    result.Add(new DateTime(defaultYear, defaultMonth, day, t.Hours, t.Minutes, t.Seconds));
-                }
-                catch
-                {
-                }
+                return list;
             }
 
-            result.Sort();
-            return result;
+            dynamic arr = JsonConvert.DeserializeObject(text);
+            if (arr == null)
+            {
+                return list;
+            }
+
+            foreach (var dayObj in arr)
+            {
+                var am = dayObj?.AM;
+                if (am == null)
+                {
+                    continue;
+                }
+                foreach (var item in am)
+                {
+                    DateTime dt;
+                    if (DateTime.TryParse(item.ToString(), out dt) && dt.Year == year && dt.Month == month)
+                    {
+                        list.Add(dt);
+                    }
+                }
+            }
+            return list;
         }
 
         private class RsaInfo
         {
             public string PublicKey { get; set; }
+            public string RsaCode { get; set; }
             public string RsaFlag { get; set; }
         }
 
@@ -846,18 +813,39 @@ namespace SigningCard
             return new RsaInfo
             {
                 PublicKey = obj?.rsa_pub?.ToString(),
+                RsaCode = obj?.rsa_code?.ToString() ?? "",
                 RsaFlag = obj?.rsa_flag?.ToString() ?? "``RSA``"
             };
         }
 
-        private string EncryptWithRsa(string base64PublicKey, string plainText)
+        /// <summary>
+        /// 与前端 rsa.js 一致：明文分段(240) + rsa_code 后 RSA 加密，每段密文后接 rsa_flag；不做 URL 编码（由 FormUrlEncodedContent 处理）。
+        /// </summary>
+        private string RsaEncryptForOa(string value, string base64PublicKey, string rsaCode, string rsaFlag)
         {
-            byte[] x509key = Convert.FromBase64String(base64PublicKey);
-            using (var rsa = DecodeX509PublicKey(x509key))
+            const int groupLength = 240;
+            var blocks = new List<string>();
+            for (int i = 0; i < value.Length; i += groupLength)
             {
-                byte[] data = Encoding.UTF8.GetBytes(plainText);
-                byte[] encrypted = rsa.Encrypt(data, false);
-                return Uri.EscapeDataString(Convert.ToBase64String(encrypted));
+                int len = Math.Min(groupLength, value.Length - i);
+                blocks.Add(value.Substring(i, len));
+            }
+            if (blocks.Count == 0)
+            {
+                blocks.Add("");
+            }
+
+            using (var rsa = DecodeX509PublicKey(Convert.FromBase64String(base64PublicKey)))
+            {
+                var sb = new StringBuilder();
+                foreach (var block in blocks)
+                {
+                    byte[] plain = Encoding.UTF8.GetBytes(block + rsaCode);
+                    byte[] encrypted = rsa.Encrypt(plain, false);
+                    sb.Append(Convert.ToBase64String(encrypted));
+                    sb.Append(rsaFlag);
+                }
+                return sb.ToString();
             }
         }
 
