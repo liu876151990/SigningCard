@@ -48,6 +48,7 @@
             this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.buttonClipBoard = new System.Windows.Forms.Button();
             this.buttonGetHolidays = new System.Windows.Forms.Button();
+            this.buttonOaAutoImport = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewHoliday)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.SuspendLayout();
@@ -226,11 +227,22 @@
             this.buttonGetHolidays.UseVisualStyleBackColor = true;
             this.buttonGetHolidays.Click += new System.EventHandler(this.ButtonGetHolidays_Click);
             // 
+            // buttonOaAutoImport
+            // 
+            this.buttonOaAutoImport.Location = new System.Drawing.Point(91, 266);
+            this.buttonOaAutoImport.Name = "buttonOaAutoImport";
+            this.buttonOaAutoImport.Size = new System.Drawing.Size(111, 23);
+            this.buttonOaAutoImport.TabIndex = 11;
+            this.buttonOaAutoImport.Text = "OA自动导入";
+            this.buttonOaAutoImport.UseVisualStyleBackColor = true;
+            this.buttonOaAutoImport.Click += new System.EventHandler(this.buttonOaAutoImport_Click);
+            // 
             // SigningCardForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(843, 424);
+            this.Controls.Add(this.buttonOaAutoImport);
             this.Controls.Add(this.buttonGetHolidays);
             this.Controls.Add(this.buttonClipBoard);
             this.Controls.Add(this.checkBox1);
@@ -272,6 +284,7 @@
         private System.Windows.Forms.CheckBox checkBox1;
         private System.Windows.Forms.Button buttonClipBoard;
         private System.Windows.Forms.Button buttonGetHolidays;
+        private System.Windows.Forms.Button buttonOaAutoImport;
     }
 }
 

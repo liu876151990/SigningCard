@@ -15,7 +15,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Net;
+using System.Security.Cryptography;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml;
@@ -259,11 +262,16 @@ namespace SigningCard
                 }
             }
              
-            if (importDateList.Count <= 0)
+            AnalyzeImportedDateList(importDateList, strNameNO);
+        }
+
+        private void AnalyzeImportedDateList(List<DateTime> importDateList, string strNameNO)
+        {
+            if (importDateList == null || importDateList.Count <= 0)
             {
+                MessageBox.Show("没有可导入的考勤打卡记录。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-
             List<DateTime> singingCardList = new List<DateTime>();//签卡
             List<DateTime> overtimeList = new List<DateTime>();//加班
             for (int i = 0; i < totalDays; i++)
@@ -584,6 +592,7 @@ namespace SigningCard
             }
 
             XLDeleteSheet(System.AppDomain.CurrentDomain.BaseDirectory + @"输出文件\加班测试.xls", "Evaluation Warning");
+            MessageBox.Show("已生成签卡与加班导出文件。", "导入完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         public bool XLDeleteSheet(string fileName, string sheetToDelete)
@@ -660,6 +669,308 @@ namespace SigningCard
         private void buttonClipBoard_Click(object sender, EventArgs e)
         {
             AnalyzeExcel(null);
+        }
+
+        private async void buttonOaAutoImport_Click(object sender, EventArgs e)
+        {
+            string loginId = PromptInput("请输入OA账号（loginid）", "OA自动导入", "");
+            if (string.IsNullOrWhiteSpace(loginId))
+            {
+                return;
+            }
+
+            string password = PromptInput("请输入OA密码", "OA自动导入", "", true);
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                return;
+            }
+
+            buttonOaAutoImport.Enabled = false;
+            buttonOaAutoImport.Text = "导入中...";
+            try
+            {
+                List<DateTime> dateTimes = await FetchAttendanceFromOaAsync(loginId, password, dateTimePicker1.Value.Year, dateTimePicker1.Value.Month);
+                string nameNo = loginId;
+                AnalyzeImportedDateList(dateTimes, nameNo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("OA自动导入失败：" + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                buttonOaAutoImport.Enabled = true;
+                buttonOaAutoImport.Text = "OA自动导入";
+            }
+        }
+
+        private async System.Threading.Tasks.Task<List<DateTime>> FetchAttendanceFromOaAsync(string loginId, string password, int year, int month)
+        {
+            var cookieContainer = new CookieContainer();
+            var handler = new HttpClientHandler
+            {
+                CookieContainer = cookieContainer,
+                UseCookies = true,
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+            };
+
+            using (var client = new HttpClient(handler))
+            {
+                client.Timeout = TimeSpan.FromSeconds(20);
+                client.DefaultRequestHeaders.Referrer = new Uri("https://oa.hanslaser.com/wui/index.html");
+                client.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+
+                var rsaInfo = await GetRsaInfoAsync(client);
+                string encryptedLoginId = EncryptWithRsa(rsaInfo.PublicKey, loginId) + rsaInfo.RsaFlag;
+                string encryptedPassword = EncryptWithRsa(rsaInfo.PublicKey, password) + rsaInfo.RsaFlag;
+
+                var loginPayload = new Dictionary<string, string>
+                {
+                    {"islanguid", "7"},
+                    {"loginid", encryptedLoginId},
+                    {"userpassword", encryptedPassword},
+                    {"dynamicPassword", ""},
+                    {"tokenAuthKey", ""},
+                    {"validatecode", ""},
+                    {"validateCodeKey", ""},
+                    {"logintype", "1"},
+                    {"messages", ""},
+                    {"isie", "false"},
+                    {"appid", ""},
+                    {"service", ""},
+                    {"isRememberPassword", "true"}
+                };
+                var loginResp = await client.PostAsync("https://oa.hanslaser.com/api/hrm/login/checkLogin", new FormUrlEncodedContent(loginPayload));
+                loginResp.EnsureSuccessStatusCode();
+                string loginText = await loginResp.Content.ReadAsStringAsync();
+                dynamic loginObj = JsonConvert.DeserializeObject(loginText);
+                string loginStatus = loginObj?.loginstatus?.ToString();
+                string msgCode = loginObj?.msgcode?.ToString();
+                if (loginStatus != "true" && msgCode != "0")
+                {
+                    throw new Exception("登录失败：" + (loginObj?.msg?.ToString() ?? "未知错误"));
+                }
+
+                int lastDay = DateTime.DaysInMonth(year, month);
+                var candidates = new List<string>
+                {
+                    "https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp",
+                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?month={year}-{month:D2}",
+                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?year={year}&month={month:D2}",
+                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?begindate={year}-{month:D2}-01&enddate={year}-{month:D2}-{lastDay:D2}",
+                    $"https://oa.hanslaser.com/hrm/resource/getSignInfo.jsp?fromDate={year}-{month:D2}-01&toDate={year}-{month:D2}-{lastDay:D2}"
+                };
+
+                foreach (var url in candidates)
+                {
+                    try
+                    {
+                        string text = await client.GetStringAsync(url);
+                        var list = ParseAttendanceDateTimes(text, year, month);
+                        if (list.Count > 0)
+                        {
+                            return list;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                throw new Exception("未在已知接口中解析到考勤明细。请补抓一次“进入考勤统计页并切换月份”的HAR后再适配。");
+            }
+        }
+
+        private List<DateTime> ParseAttendanceDateTimes(string rawText, int defaultYear, int defaultMonth)
+        {
+            var result = new List<DateTime>();
+            if (string.IsNullOrWhiteSpace(rawText))
+            {
+                return result;
+            }
+
+            string decoded = WebUtility.HtmlDecode(rawText);
+
+            foreach (Match m in Regex.Matches(decoded, @"\d{4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{2}:\d{2}(:\d{2})?"))
+            {
+                DateTime dt;
+                if (DateTime.TryParse(m.Value, out dt) && dt.Year == defaultYear && dt.Month == defaultMonth)
+                {
+                    result.Add(dt);
+                }
+            }
+
+            if (result.Count > 0)
+            {
+                result.Sort();
+                return result;
+            }
+
+            string pattern = @"(\d{1,2})\D+(\d{2}:\d{2}(:\d{2})?)";
+            foreach (Match m in Regex.Matches(decoded, pattern))
+            {
+                int day;
+                if (!int.TryParse(m.Groups[1].Value, out day))
+                {
+                    continue;
+                }
+                TimeSpan t;
+                if (!TimeSpan.TryParse(m.Groups[2].Value, out t))
+                {
+                    continue;
+                }
+                try
+                {
+                    result.Add(new DateTime(defaultYear, defaultMonth, day, t.Hours, t.Minutes, t.Seconds));
+                }
+                catch
+                {
+                }
+            }
+
+            result.Sort();
+            return result;
+        }
+
+        private class RsaInfo
+        {
+            public string PublicKey { get; set; }
+            public string RsaFlag { get; set; }
+        }
+
+        private async System.Threading.Tasks.Task<RsaInfo> GetRsaInfoAsync(HttpClient client)
+        {
+            string url = "https://oa.hanslaser.com/rsa/weaver.rsa.GetRsaInfo?ts=" + DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            string text = await client.GetStringAsync(url);
+            dynamic obj = JsonConvert.DeserializeObject(text);
+            return new RsaInfo
+            {
+                PublicKey = obj?.rsa_pub?.ToString(),
+                RsaFlag = obj?.rsa_flag?.ToString() ?? "``RSA``"
+            };
+        }
+
+        private string EncryptWithRsa(string base64PublicKey, string plainText)
+        {
+            byte[] x509key = Convert.FromBase64String(base64PublicKey);
+            using (var rsa = DecodeX509PublicKey(x509key))
+            {
+                byte[] data = Encoding.UTF8.GetBytes(plainText);
+                byte[] encrypted = rsa.Encrypt(data, false);
+                return Uri.EscapeDataString(Convert.ToBase64String(encrypted));
+            }
+        }
+
+        private RSACryptoServiceProvider DecodeX509PublicKey(byte[] x509Key)
+        {
+            using (BinaryReader reader = new BinaryReader(new MemoryStream(x509Key)))
+            {
+                ushort twobytes = reader.ReadUInt16();
+                if (twobytes == 0x8130) reader.ReadByte();
+                else if (twobytes == 0x8230) reader.ReadInt16();
+                else throw new Exception("无效RSA公钥格式");
+
+                byte[] seq = reader.ReadBytes(15);
+                byte[] seqOid = new byte[] { 0x30, 0x0D, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01, 0x05, 0x00 };
+                for (int i = 0; i < seqOid.Length; i++)
+                {
+                    if (seq[i] != seqOid[i]) throw new Exception("无效RSA公钥OID");
+                }
+
+                twobytes = reader.ReadUInt16();
+                if (twobytes == 0x8103) reader.ReadByte();
+                else if (twobytes == 0x8203) reader.ReadInt16();
+                else throw new Exception("无效RSA公钥BIT STRING");
+
+                byte bt = reader.ReadByte();
+                if (bt != 0x00) throw new Exception("无效RSA公钥填充");
+
+                twobytes = reader.ReadUInt16();
+                if (twobytes == 0x8130) reader.ReadByte();
+                else if (twobytes == 0x8230) reader.ReadInt16();
+                else throw new Exception("无效RSA公钥SEQUENCE");
+
+                twobytes = reader.ReadUInt16();
+                int modsize;
+                if (twobytes == 0x8102) modsize = reader.ReadByte();
+                else if (twobytes == 0x8202)
+                {
+                    byte high = reader.ReadByte();
+                    byte low = reader.ReadByte();
+                    modsize = BitConverter.ToUInt16(new byte[] { low, high }, 0);
+                }
+                else
+                {
+                    throw new Exception("无效RSA公钥模数");
+                }
+
+                byte firstModByte = reader.ReadByte();
+                reader.BaseStream.Seek(-1, SeekOrigin.Current);
+                if (firstModByte == 0x00) 
+                {
+                    reader.ReadByte();
+                    modsize -= 1;
+                }
+                byte[] modulus = reader.ReadBytes(modsize);
+
+                if (reader.ReadByte() != 0x02) throw new Exception("无效RSA公钥指数");
+                int expbytes = reader.ReadByte();
+                byte[] exponent = reader.ReadBytes(expbytes);
+
+                var rsa = new RSACryptoServiceProvider();
+                rsa.ImportParameters(new RSAParameters { Modulus = modulus, Exponent = exponent });
+                return rsa;
+            }
+        }
+
+        private string PromptInput(string prompt, string title, string defaultValue = "", bool isPassword = false)
+        {
+            using (var form = new Form())
+            using (var label = new Label())
+            using (var textBox = new TextBox())
+            using (var buttonOk = new Button())
+            using (var buttonCancel = new Button())
+            {
+                form.Text = title;
+                form.StartPosition = FormStartPosition.CenterParent;
+                form.Width = 420;
+                form.Height = 170;
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.MaximizeBox = false;
+                form.MinimizeBox = false;
+
+                label.Left = 12;
+                label.Top = 16;
+                label.Width = 380;
+                label.Text = prompt;
+
+                textBox.Left = 12;
+                textBox.Top = 44;
+                textBox.Width = 380;
+                textBox.Text = defaultValue;
+                textBox.UseSystemPasswordChar = isPassword;
+
+                buttonOk.Text = "确定";
+                buttonOk.Left = 236;
+                buttonOk.Top = 82;
+                buttonOk.Width = 75;
+                buttonOk.DialogResult = DialogResult.OK;
+
+                buttonCancel.Text = "取消";
+                buttonCancel.Left = 317;
+                buttonCancel.Top = 82;
+                buttonCancel.Width = 75;
+                buttonCancel.DialogResult = DialogResult.Cancel;
+
+                form.Controls.Add(label);
+                form.Controls.Add(textBox);
+                form.Controls.Add(buttonOk);
+                form.Controls.Add(buttonCancel);
+                form.AcceptButton = buttonOk;
+                form.CancelButton = buttonCancel;
+
+                return form.ShowDialog(this) == DialogResult.OK ? textBox.Text.Trim() : "";
+            }
         }
 
         private async void ButtonGetHolidays_Click(object sender, EventArgs e)
