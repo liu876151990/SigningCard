@@ -30,13 +30,13 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SigningCardForm));
             this.dataGridViewHoliday = new System.Windows.Forms.DataGridView();
-            this.日 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.一 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.二 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.三 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.四 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.五 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.六 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.日 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.buttonImport = new System.Windows.Forms.Button();
             this.dateTimePicker1 = new System.Windows.Forms.DateTimePicker();
             this.openFileDialogPunchRecord = new System.Windows.Forms.OpenFileDialog();
@@ -73,13 +73,6 @@
             this.dataGridViewHoliday.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.DataGridViewHoliday_CellContentClick);
             this.dataGridViewHoliday.CellContentDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.DataGridViewHoliday_CellContentDoubleClick);
             this.dataGridViewHoliday.CellMouseDoubleClick += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.DataGridViewHoliday_CellMouseDoubleClick);
-            // 
-            // 日
-            // 
-            this.日.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
-            this.日.HeaderText = "日";
-            this.日.Name = "日";
-            this.日.Width = 42;
             // 
             // 一
             // 
@@ -122,6 +115,13 @@
             this.六.HeaderText = "六";
             this.六.Name = "六";
             this.六.Width = 42;
+            // 
+            // 日
+            // 
+            this.日.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            this.日.HeaderText = "日";
+            this.日.Name = "日";
+            this.日.Width = 42;
             // 
             // buttonImport
             // 
@@ -200,7 +200,7 @@
             // checkBox1
             // 
             this.checkBox1.AutoSize = true;
-            this.checkBox1.Location = new System.Drawing.Point(226, 266);
+            this.checkBox1.Location = new System.Drawing.Point(219, 304);
             this.checkBox1.Name = "checkBox1";
             this.checkBox1.Size = new System.Drawing.Size(72, 16);
             this.checkBox1.TabIndex = 8;
@@ -229,7 +229,7 @@
             // 
             // buttonOaAutoImport
             // 
-            this.buttonOaAutoImport.Location = new System.Drawing.Point(91, 266);
+            this.buttonOaAutoImport.Location = new System.Drawing.Point(219, 248);
             this.buttonOaAutoImport.Name = "buttonOaAutoImport";
             this.buttonOaAutoImport.Size = new System.Drawing.Size(111, 23);
             this.buttonOaAutoImport.TabIndex = 11;
@@ -254,7 +254,7 @@
             this.Controls.Add(this.dataGridViewHoliday);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "SigningCardForm";
-            this.Text = "签卡工具V1.4.3";
+            this.Text = "签卡工具V1.4.4";
             this.Load += new System.EventHandler(this.SigningCardForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewHoliday)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
