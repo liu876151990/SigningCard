@@ -700,7 +700,7 @@ namespace SigningCard
 
         private async void buttonOaAutoImport_Click(object sender, EventArgs e)
         {
-            if ((Control.ModifierKeys & Keys.Shift) == Keys.Shift)
+            if ((System.Windows.Forms.Control.ModifierKeys & Keys.Shift) == Keys.Shift)
             {
                 ShowOaAccountSettings();
                 return;
