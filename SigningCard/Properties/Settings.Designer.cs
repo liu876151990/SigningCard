@@ -22,5 +22,29 @@ namespace SigningCard.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string OaLoginId {
+            get {
+                return ((string)(this["OaLoginId"]));
+            }
+            set {
+                this["OaLoginId"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string OaPasswordProtected {
+            get {
+                return ((string)(this["OaPasswordProtected"]));
+            }
+            set {
+                this["OaPasswordProtected"] = value;
+            }
+        }
     }
 }

@@ -19,6 +19,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 using System.Text;
+using SigningCard.Properties;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Xml;
@@ -43,6 +44,7 @@ namespace SigningCard
             public string Reason2 { get; set; }
         }
         BindingList<Reason> ReasonList = new BindingList<Reason>();
+        ToolTip toolTipOa;
 
         public SigningCardForm()
         {
@@ -139,7 +141,10 @@ namespace SigningCard
             }
             dataGridView1.AutoGenerateColumns = false;                    // 防止自由生成所有数据列
 
-            dataGridView1.DataSource = new BindingSource(ReasonList, null); 
+            dataGridView1.DataSource = new BindingSource(ReasonList, null);
+
+            toolTipOa = new ToolTip();
+            toolTipOa.SetToolTip(buttonOaAutoImport, "单击：导入考勤；Shift+单击：设置 OA 账号并保存到本机");
         }
 
         private void DataGridViewHoliday_CellContentDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -671,18 +676,54 @@ namespace SigningCard
             AnalyzeExcel(null);
         }
 
-        private async void buttonOaAutoImport_Click(object sender, EventArgs e)
+        private void ShowOaAccountSettings()
         {
-            string loginId = PromptInput("请输入OA账号（loginid）", "OA自动导入", "");
-            if (string.IsNullOrWhiteSpace(loginId))
+            string loginId;
+            string password;
+            TryLoadOaCredentials(out loginId, out password);
+            bool remember;
+            if (!ShowOaCredentialDialog("OA 账号设置", out loginId, out password, out remember, true, loginId ?? "", password ?? ""))
             {
                 return;
             }
-
-            string password = PromptInput("请输入OA密码", "OA自动导入", "", true);
-            if (string.IsNullOrWhiteSpace(password))
+            if (remember && !string.IsNullOrWhiteSpace(loginId))
             {
+                SaveOaCredentials(loginId, password ?? "");
+                MessageBox.Show("已保存 OA 账号（密码已用本机 Windows 用户级加密存储）。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                ClearOaCredentials();
+                MessageBox.Show("已清除本机保存的 OA 登录信息。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private async void buttonOaAutoImport_Click(object sender, EventArgs e)
+        {
+            if ((Control.ModifierKeys & Keys.Shift) == Keys.Shift)
+            {
+                ShowOaAccountSettings();
                 return;
+            }
+
+            string loginId;
+            string password;
+            bool usedSaved = TryLoadOaCredentials(out loginId, out password);
+            if (!usedSaved)
+            {
+                bool remember;
+                if (!ShowOaCredentialDialog("OA 自动导入 - 登录", out loginId, out password, out remember, false))
+                {
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(loginId) || password == null)
+                {
+                    return;
+                }
+                if (remember)
+                {
+                    SaveOaCredentials(loginId, password);
+                }
             }
 
             buttonOaAutoImport.Enabled = false;
@@ -695,12 +736,166 @@ namespace SigningCard
             }
             catch (Exception ex)
             {
-                MessageBox.Show("OA自动导入失败：" + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (usedSaved)
+                {
+                    ClearOaCredentials();
+                    MessageBox.Show("已保存的登录已失效，已清除本地记录。\r\n请 Shift+单击「OA自动导入」重新设置账号，或再次导入时输入账号密码。\r\n\r\n" + ex.Message, "OA 登录失效", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    MessageBox.Show("OA自动导入失败：" + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             finally
             {
                 buttonOaAutoImport.Enabled = true;
                 buttonOaAutoImport.Text = "OA自动导入";
+            }
+        }
+
+        private static bool TryLoadOaCredentials(out string loginId, out string password)
+        {
+            loginId = "";
+            password = "";
+            try
+            {
+                if (string.IsNullOrWhiteSpace(Settings.Default.OaLoginId) || string.IsNullOrWhiteSpace(Settings.Default.OaPasswordProtected))
+                {
+                    return false;
+                }
+                loginId = Settings.Default.OaLoginId.Trim();
+                byte[] cipher = Convert.FromBase64String(Settings.Default.OaPasswordProtected);
+                byte[] plain = ProtectedData.Unprotect(cipher, null, DataProtectionScope.CurrentUser);
+                password = Encoding.UTF8.GetString(plain);
+                return !string.IsNullOrEmpty(loginId);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void SaveOaCredentials(string loginId, string password)
+        {
+            Settings.Default.OaLoginId = (loginId ?? "").Trim();
+            byte[] plain = Encoding.UTF8.GetBytes(password ?? "");
+            byte[] cipher = ProtectedData.Protect(plain, null, DataProtectionScope.CurrentUser);
+            Settings.Default.OaPasswordProtected = Convert.ToBase64String(cipher);
+            Settings.Default.Save();
+        }
+
+        private static void ClearOaCredentials()
+        {
+            Settings.Default.OaLoginId = "";
+            Settings.Default.OaPasswordProtected = "";
+            Settings.Default.Save();
+        }
+
+        private bool ShowOaCredentialDialog(string title, out string loginId, out string password, out bool remember, bool settingsMode, string initialLogin = "", string initialPassword = "")
+        {
+            loginId = "";
+            password = "";
+            remember = false;
+
+            using (var form = new Form())
+            using (var lblUser = new Label())
+            using (var txtUser = new TextBox())
+            using (var lblPwd = new Label())
+            using (var txtPwd = new TextBox())
+            using (var chkRemember = new CheckBox())
+            using (var btnOk = new Button())
+            using (var btnCancel = new Button())
+            {
+                form.Text = title;
+                form.StartPosition = FormStartPosition.CenterParent;
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.MaximizeBox = false;
+                form.MinimizeBox = false;
+                form.Width = 400;
+                form.Height = 220;
+
+                lblUser.Text = "账号：";
+                lblUser.Left = 12;
+                lblUser.Top = 14;
+                lblUser.AutoSize = true;
+
+                txtUser.Left = 72;
+                txtUser.Top = 10;
+                txtUser.Width = 300;
+                txtUser.Text = initialLogin;
+
+                lblPwd.Text = "密码：";
+                lblPwd.Left = 12;
+                lblPwd.Top = 44;
+                lblPwd.AutoSize = true;
+
+                txtPwd.Left = 72;
+                txtPwd.Top = 40;
+                txtPwd.Width = 300;
+                txtPwd.UseSystemPasswordChar = true;
+                txtPwd.Text = initialPassword;
+
+                chkRemember.Text = "记住账号密码（本机加密保存，下次无需输入）";
+                chkRemember.Left = 12;
+                chkRemember.Top = 76;
+                chkRemember.Width = 360;
+                chkRemember.Checked = true;
+
+                btnOk.Text = "确定";
+                btnOk.Left = 216;
+                btnOk.Top = 110;
+                btnOk.Width = 75;
+                btnOk.DialogResult = DialogResult.OK;
+
+                btnCancel.Text = "取消";
+                btnCancel.Left = 297;
+                btnCancel.Top = 110;
+                btnCancel.Width = 75;
+                btnCancel.DialogResult = DialogResult.Cancel;
+
+                form.Controls.Add(lblUser);
+                form.Controls.Add(txtUser);
+                form.Controls.Add(lblPwd);
+                form.Controls.Add(txtPwd);
+                form.Controls.Add(chkRemember);
+                form.Controls.Add(btnOk);
+                form.Controls.Add(btnCancel);
+                form.AcceptButton = btnOk;
+                form.CancelButton = btnCancel;
+
+                if (form.ShowDialog(this) != DialogResult.OK)
+                {
+                    return false;
+                }
+                loginId = txtUser.Text.Trim();
+                password = txtPwd.Text;
+                remember = chkRemember.Checked;
+                if (string.IsNullOrEmpty(loginId))
+                {
+                    // 账号设置里取消「记住」时，可不填账号，仅用于清除本机已保存的凭据
+                    if (!(settingsMode && !remember))
+                    {
+                        MessageBox.Show("请输入账号。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return false;
+                    }
+                }
+                if (settingsMode)
+                {
+                    if (remember && string.IsNullOrEmpty(password))
+                    {
+                        MessageBox.Show("勾选「记住账号密码」时，密码不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(password))
+                    {
+                        MessageBox.Show("请输入密码。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return false;
+                    }
+                }
+                return true;
             }
         }
 
@@ -751,15 +946,11 @@ namespace SigningCard
                     throw new Exception((string)(loginObj?.msg ?? "登录失败"));
                 }
 
-                var result = new List<DateTime>();
-                int days = DateTime.DaysInMonth(year, month);
-                for (int day = 1; day <= days; day++)
-                {
-                    string dateParam = string.Format("{0}-{1}-{2}", year, month, day);
-                    string url = "https://oa.hanslaser.com/api/hans/Administrative/getinfo?date=" + dateParam + "&workcode=&_=" + DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                    string text = await client.GetStringAsync(url);
-                    result.AddRange(ParseHansAdministrativeResponse(text, year, month));
-                }
+                // 一次请求即可返回当月考勤（与 HAR 中接口一致，date 传当月任意一天即可；这里用当月 1 日）
+                string dateParam = string.Format("{0}-{1}-{2}", year, month, 1);
+                string url = "https://oa.hanslaser.com/api/hans/Administrative/getinfo?date=" + Uri.EscapeDataString(dateParam) + "&workcode=&_=" + DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                string text = await client.GetStringAsync(url);
+                var result = ParseHansAdministrativeResponse(text, year, month);
                 result.Sort();
                 return result;
             }
