@@ -730,9 +730,9 @@ namespace SigningCard
             buttonOaAutoImport.Text = "导入中...";
             try
             {
-                List<DateTime> dateTimes = await FetchAttendanceFromOaAsync(loginId, password, dateTimePicker1.Value.Year, dateTimePicker1.Value.Month);
+                (List<DateTime>,string) dateTimes = await FetchAttendanceFromOaAsync(loginId, password, dateTimePicker1.Value.Year, dateTimePicker1.Value.Month);
                 string nameNo = loginId;
-                AnalyzeImportedDateList(dateTimes, nameNo);
+                AnalyzeImportedDateList(dateTimes.Item1, dateTimes.Item2);
             }
             catch (Exception ex)
             {
@@ -899,7 +899,7 @@ namespace SigningCard
             }
         }
 
-        private async System.Threading.Tasks.Task<List<DateTime>> FetchAttendanceFromOaAsync(string loginId, string password, int year, int month)
+        private async System.Threading.Tasks.Task<(List<DateTime>,string)> FetchAttendanceFromOaAsync(string loginId, string password, int year, int month)
         {
             var cookieContainer = new CookieContainer();
             var handler = new HttpClientHandler
@@ -952,7 +952,13 @@ namespace SigningCard
                 string text = await client.GetStringAsync(url);
                 var result = ParseHansAdministrativeResponse(text, year, month);
                 result.Sort();
-                return result;
+
+                url = "https://oa.hanslaser.com/api/hrm/login/getAccountList?__random__=" + DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                string userInfo = await client.GetStringAsync(url);
+                dynamic userObj = JsonConvert.DeserializeObject(userInfo);
+                string userNmae = userObj?.data?.username?.ToString();
+
+                return (result, userNmae);
             }
         }
 
